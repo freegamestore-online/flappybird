@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { useControls } from "../hooks/useControls";
 import { useGameLoop } from "../hooks/useGameLoop";
+import { useHighScore } from "../hooks/useHighScore";
 import { drawText, drawGlow, hexToRgba, randomInRange } from "../lib/canvas";
 
 interface Pipe {
