@@ -2,6 +2,7 @@ import { useRef, useEffect, useCallback } from "react";
 import { useGameLoop } from "../hooks/useGameLoop";
 import { useHighScore } from "../hooks/useHighScore";
 import { drawText, randomInRange, hexToRgba } from "../lib/canvas";
+import { GAME_TITLE } from "./title";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Bird { x: number; y: number; vy: number; flapTimer: number; wingAngle: number; }
@@ -31,8 +32,8 @@ function makePipe(x: number, ch: number, score: number): Pipe {
 }
 function spawnParticles(arr: Particle[], x: number, y: number, type: "puff" | "sparkle") {
   const colors = type === "sparkle"
-    ? ["#ffe066", "#ffb347", "#ff6eb4", "#a8edea"]
-    : ["#fff", "#ffe0b2", "#fffde7"];
+    ? ["#34d399", "#a5b4fc", "#93c5fd", "#ffffff"]
+    : ["#fff", "#e2e8f0", "#f1f5f9"];
   for (let i = 0; i < (type === "sparkle" ? 10 : 5); i++) {
     const angle = Math.random() * Math.PI * 2;
     const spd = randomInRange(type === "sparkle" ? 60 : 30, type === "sparkle" ? 160 : 90);
@@ -41,63 +42,60 @@ function spawnParticles(arr: Particle[], x: number, y: number, type: "puff" | "s
 }
 
 // ── Draw helpers ───────────────────────────────────────────────────────────────
+// Paper plane: a folded dart with swept wings. Flapping flicks the wing tips.
 function drawBird(ctx: CanvasRenderingContext2D, b: Bird, t: number) {
   const angle = Math.min(Math.max(b.vy / 900, -0.4), 0.9);
   ctx.save();
   ctx.translate(b.x, b.y);
   ctx.rotate(angle);
 
-  // Wing (behind body)
-  const wingFlap = b.flapTimer > 0 ? Math.sin(b.flapTimer * 18) * 0.7 : Math.sin(t * 4) * 0.18;
-  ctx.save();
-  ctx.rotate(-0.3 + wingFlap);
-  ctx.fillStyle = "#ffd54f";
-  ctx.beginPath();
-  ctx.ellipse(-4, 4, 10, 6, -0.4, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
+  const flick = b.flapTimer > 0 ? Math.sin(b.flapTimer * 18) * 0.35 : Math.sin(t * 4) * 0.08;
+  const wingTip = BIRD_R * 0.95 + flick * BIRD_R;
 
-  // Body
-  const grad = ctx.createRadialGradient(-4, -4, 2, 0, 0, BIRD_R);
-  grad.addColorStop(0, "#fff9c4");
-  grad.addColorStop(0.5, "#ffca28");
-  grad.addColorStop(1, "#ffa000");
-  ctx.fillStyle = grad;
+  // Far wing (darker, behind the fuselage)
+  ctx.fillStyle = "#cbd5e1";
   ctx.beginPath();
-  ctx.arc(0, 0, BIRD_R, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Eye white
-  ctx.fillStyle = "#fff";
-  ctx.beginPath();
-  ctx.ellipse(7, -6, 7, 8, 0.3, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Pupil
-  ctx.fillStyle = "#1a1a2e";
-  ctx.beginPath();
-  ctx.arc(9, -5, 4, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Shine
-  ctx.fillStyle = "rgba(255,255,255,0.9)";
-  ctx.beginPath();
-  ctx.arc(10, -7, 1.5, 0, Math.PI * 2);
-  ctx.fill();
-
-  // Beak
-  ctx.fillStyle = "#ff8f00";
-  ctx.beginPath();
-  ctx.moveTo(13, -2);
-  ctx.lineTo(22, 1);
-  ctx.lineTo(13, 4);
+  ctx.moveTo(-BIRD_R * 0.1, 0);
+  ctx.lineTo(-BIRD_R * 0.5, -wingTip);
+  ctx.lineTo(-BIRD_R * 0.7, 0);
   ctx.closePath();
   ctx.fill();
 
-  // Cheek blush
-  ctx.fillStyle = "rgba(255,120,120,0.35)";
+  // Fuselage: pointed nose at +x, notched tail at -x
+  ctx.fillStyle = "#ffffff";
+  ctx.strokeStyle = "#94a3b8";
+  ctx.lineWidth = 1.5;
   ctx.beginPath();
-  ctx.ellipse(4, 4, 5, 3, 0, 0, Math.PI * 2);
+  ctx.moveTo(BIRD_R * 1.15, 0);
+  ctx.lineTo(-BIRD_R * 0.85, -BIRD_R * 0.6);
+  ctx.lineTo(-BIRD_R * 0.5, 0);
+  ctx.lineTo(-BIRD_R * 0.85, BIRD_R * 0.6);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Near wing (light, with the flick)
+  ctx.fillStyle = "#f1f5f9";
+  ctx.beginPath();
+  ctx.moveTo(BIRD_R * 0.2, -BIRD_R * 0.05);
+  ctx.lineTo(-BIRD_R * 0.3, -wingTip * 0.9);
+  ctx.lineTo(-BIRD_R * 0.55, 0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Emerald fold line down the centre
+  ctx.strokeStyle = "#10b981";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(BIRD_R * 1.05, 0);
+  ctx.lineTo(-BIRD_R * 0.5, 0);
+  ctx.stroke();
+
+  // Eye
+  ctx.fillStyle = "#1e293b";
+  ctx.beginPath();
+  ctx.arc(BIRD_R * 0.35, -BIRD_R * 0.2, 2.2, 0, Math.PI * 2);
   ctx.fill();
 
   ctx.restore();
@@ -107,58 +105,33 @@ function drawPipe(ctx: CanvasRenderingContext2D, pipe: Pipe, ch: number) {
   const { x, gapY, gapH } = pipe;
   const w = PIPE_W;
 
-  // Top trunk
-  drawTrunk(ctx, x, 0, w, gapY);
-  // Bottom trunk
-  drawTrunk(ctx, x, gapY + gapH, w, ch - GROUND_H - gapY - gapH);
-
-  // Caps (mushroom-like)
-  ctx.fillStyle = "#558b2f";
-  ctx.beginPath();
-  ctx.roundRect(x - 6, gapY - 18, w + 12, 20, 6);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.roundRect(x - 6, gapY + gapH - 2, w + 12, 20, 6);
-  ctx.fill();
-
-  // Leaf detail on caps
-  ctx.fillStyle = "#7cb342";
-  ctx.beginPath();
-  ctx.ellipse(x + w / 2, gapY - 8, 12, 6, -0.3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(x + w / 2, gapY + gapH + 10, 12, 6, 0.3, 0, Math.PI * 2);
-  ctx.fill();
+  drawPillar(ctx, x, 0, w, gapY);
+  drawPillar(ctx, x, gapY + gapH, w, ch - GROUND_H - gapY - gapH);
 }
 
-function drawTrunk(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+// Brand-colour pillar: emerald shaft with a lip where it meets the gap
+function drawPillar(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
   if (h <= 0) return;
-  // Base trunk color
-  const g = ctx.createLinearGradient(x, 0, x + w, 0);
-  g.addColorStop(0, "#6d4c41");
-  g.addColorStop(0.3, "#8d6e63");
-  g.addColorStop(0.7, "#795548");
-  g.addColorStop(1, "#5d4037");
-  ctx.fillStyle = g;
+  ctx.fillStyle = "#10b981";
   ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = "#34d399";
+  ctx.fillRect(x + 6, y, 7, h);
+  ctx.fillStyle = "#047857";
+  ctx.fillRect(x + w - 7, y, 7, h);
 
-  // Bark lines
-  ctx.strokeStyle = "rgba(0,0,0,0.12)";
-  ctx.lineWidth = 1.5;
-  for (let i = 0; i < h; i += 22) {
-    ctx.beginPath();
-    ctx.moveTo(x + 8, y + i + 5);
-    ctx.quadraticCurveTo(x + w / 2, y + i + 10, x + w - 8, y + i + 5);
-    ctx.stroke();
-  }
+  const lipY = y === 0 ? y + h - 18 : y - 2;
+  ctx.fillStyle = "#059669";
+  ctx.beginPath();
+  ctx.roundRect(x - 6, lipY, w + 12, 20, 6);
+  ctx.fill();
 }
 
-function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number, scrollX: number) {
+function drawBackground(ctx: CanvasRenderingContext2D, w: number, h: number) {
   // Sky gradient
   const sky = ctx.createLinearGradient(0, 0, 0, h);
-  sky.addColorStop(0, "#b3e5fc");
-  sky.addColorStop(0.6, "#e1f5fe");
-  sky.addColorStop(1, "#fff9c4");
+  sky.addColorStop(0, "#dbeafe");
+  sky.addColorStop(0.6, "#eef2ff");
+  sky.addColorStop(1, "#f8fafc");
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, w, h);
 }
@@ -186,7 +159,7 @@ function drawClouds(ctx: CanvasRenderingContext2D, clouds: Cloud[]) {
 function drawGround(ctx: CanvasRenderingContext2D, w: number, h: number, scrollX: number) {
   const gy = h - GROUND_H;
   // Hill silhouette
-  ctx.fillStyle = "#a5d6a7";
+  ctx.fillStyle = "#c7d2fe";
   ctx.beginPath();
   ctx.moveTo(0, gy + 10);
   for (let x = 0; x <= w + 80; x += 40) {
@@ -199,12 +172,12 @@ function drawGround(ctx: CanvasRenderingContext2D, w: number, h: number, scrollX
   ctx.fill();
 
   // Ground strip
-  ctx.fillStyle = "#81c784";
+  ctx.fillStyle = "#a5b4fc";
   ctx.fillRect(0, gy, w, 14);
-  ctx.fillStyle = "#66bb6a";
+  ctx.fillStyle = "#e0e7ff";
   ctx.fillRect(0, gy + 14, w, GROUND_H - 14);
 
-  // Dirt texture lines
+  // Texture lines
   ctx.strokeStyle = "rgba(0,0,0,0.06)";
   ctx.lineWidth = 1;
   const tileW = 40;
@@ -214,28 +187,6 @@ function drawGround(ctx: CanvasRenderingContext2D, w: number, h: number, scrollX
     ctx.moveTo(x, gy + 16);
     ctx.lineTo(x + tileW * 0.6, gy + 16);
     ctx.stroke();
-  }
-
-  // Flowers
-  const flowerColors = ["#f06292", "#ba68c8", "#fff176", "#ef5350", "#ff8a65"];
-  for (let fx = 20; fx < w; fx += 55) {
-    const phase = (fx + scrollX * 0.5) % (w + 100);
-    const fc = flowerColors[Math.floor(fx / 55) % flowerColors.length]!;
-    const stemY = gy + 4;
-    ctx.strokeStyle = "#388e3c";
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(phase % w, stemY);
-    ctx.lineTo(phase % w, stemY - 14);
-    ctx.stroke();
-    ctx.fillStyle = fc;
-    ctx.beginPath();
-    ctx.arc(phase % w, stemY - 18, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = "#fff9c4";
-    ctx.beginPath();
-    ctx.arc(phase % w, stemY - 18, 2.5, 0, Math.PI * 2);
-    ctx.fill();
   }
 }
 
@@ -388,7 +339,7 @@ export function FlappyBirdGame() {
       });
       g.scrollX += 60 * dt;
 
-      drawBackground(ctx, W, H, g.scrollX);
+      drawBackground(ctx, W, H);
       drawClouds(ctx, g.clouds);
       drawGround(ctx, W, H, g.scrollX);
 
@@ -397,11 +348,11 @@ export function FlappyBirdGame() {
       drawBird(ctx, idleBird, g.time);
 
       drawOverlay(ctx, W, H, 0.18);
-      drawText(ctx, "🐣 Flappy Bird", W / 2, H * 0.2, { font: `bold ${Math.round(W * 0.072)}px Fraunces, serif`, color: "#fff9c4", shadow: "#7b3f00", shadowBlur: 14 });
+      drawText(ctx, GAME_TITLE, W / 2, H * 0.2, { font: `bold ${Math.round(W * 0.072)}px Fraunces, serif`, color: "#d1fae5", shadow: "#064e3b", shadowBlur: 14 });
 
       // Play button
       const bw = Math.min(200, W * 0.48), bh = 58, bx = W / 2 - bw / 2, by = H * 0.58;
-      ctx.fillStyle = "#43a047";
+      ctx.fillStyle = "#10b981";
       ctx.shadowColor = "rgba(0,0,0,0.25)";
       ctx.shadowBlur = 14;
       ctx.beginPath();
@@ -411,7 +362,7 @@ export function FlappyBirdGame() {
       drawText(ctx, "▶  Play", W / 2, by + bh / 2, { font: "bold 26px Manrope, sans-serif", color: "#fff" });
 
       drawText(ctx, "Tap · Click · Space", W / 2, H * 0.78, { font: "16px Manrope, sans-serif", color: "rgba(255,255,255,0.75)" });
-      if (g.best > 0) drawText(ctx, `Best: ${g.best}`, W / 2, H * 0.84, { font: "15px Manrope, sans-serif", color: "#fff9c4" });
+      if (g.best > 0) drawText(ctx, `Best: ${g.best}`, W / 2, H * 0.84, { font: "15px Manrope, sans-serif", color: "#d1fae5" });
 
       if (justPressed) resetGame();
       return;
@@ -419,13 +370,13 @@ export function FlappyBirdGame() {
 
     // ── Paused ──────────────────────────────────────────────────────────────
     if (g.phase === "paused") {
-      drawBackground(ctx, W, H, g.scrollX);
+      drawBackground(ctx, W, H);
       drawClouds(ctx, g.clouds);
       drawGround(ctx, W, H, g.scrollX);
       g.pipes.forEach(p => drawPipe(ctx, p, H));
       drawBird(ctx, g.bird, g.time);
       drawOverlay(ctx, W, H, 0.45);
-      drawText(ctx, "Paused", W / 2, H * 0.38, { font: `bold ${Math.round(W * 0.07)}px Fraunces, serif`, color: "#fff9c4", shadow: "#000", shadowBlur: 10 });
+      drawText(ctx, "Paused", W / 2, H * 0.38, { font: `bold ${Math.round(W * 0.07)}px Fraunces, serif`, color: "#d1fae5", shadow: "#000", shadowBlur: 10 });
       drawText(ctx, "Tap to resume", W / 2, H * 0.52, { font: "18px Manrope, sans-serif", color: "#fff" });
       if (justPressed) g.phase = "playing";
       return;
@@ -433,7 +384,7 @@ export function FlappyBirdGame() {
 
     // ── Game Over ───────────────────────────────────────────────────────────
     if (g.phase === "gameover") {
-      drawBackground(ctx, W, H, g.scrollX);
+      drawBackground(ctx, W, H);
       drawClouds(ctx, g.clouds);
       drawGround(ctx, W, H, g.scrollX);
       g.pipes.forEach(p => drawPipe(ctx, p, H));
@@ -441,12 +392,12 @@ export function FlappyBirdGame() {
       drawParticles(ctx, g.particles);
       drawOverlay(ctx, W, H, 0.5);
 
-      drawText(ctx, "Game Over!", W / 2, H * 0.28, { font: `bold ${Math.round(W * 0.075)}px Fraunces, serif`, color: "#ff8a65", shadow: "#000", shadowBlur: 12 });
-      drawText(ctx, `Score: ${g.score}`, W / 2, H * 0.42, { font: "bold 28px Manrope, sans-serif", color: "#fff9c4", shadow: "#000", shadowBlur: 8 });
-      drawText(ctx, `Best: ${g.best}`, W / 2, H * 0.51, { font: "22px Manrope, sans-serif", color: "#ffe082", shadow: "#000", shadowBlur: 6 });
+      drawText(ctx, "Game Over!", W / 2, H * 0.28, { font: `bold ${Math.round(W * 0.075)}px Fraunces, serif`, color: "#fecaca", shadow: "#000", shadowBlur: 12 });
+      drawText(ctx, `Score: ${g.score}`, W / 2, H * 0.42, { font: "bold 28px Manrope, sans-serif", color: "#d1fae5", shadow: "#000", shadowBlur: 8 });
+      drawText(ctx, `Best: ${g.best}`, W / 2, H * 0.51, { font: "22px Manrope, sans-serif", color: "#a7f3d0", shadow: "#000", shadowBlur: 6 });
 
       const bw = Math.min(220, W * 0.52), bh = 58, bx = W / 2 - bw / 2, by = H * 0.62;
-      ctx.fillStyle = "#e53935";
+      ctx.fillStyle = "#059669";
       ctx.shadowColor = "rgba(0,0,0,0.3)";
       ctx.shadowBlur = 14;
       ctx.beginPath();
@@ -547,7 +498,7 @@ export function FlappyBirdGame() {
     ctx.save();
     if (sx || sy) ctx.translate(sx, sy);
 
-    drawBackground(ctx, W, H, g.scrollX);
+    drawBackground(ctx, W, H);
     drawClouds(ctx, g.clouds);
     g.pipes.forEach(p => drawPipe(ctx, p, H));
     drawGround(ctx, W, H, g.scrollX);

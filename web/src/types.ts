@@ -55,8 +55,3 @@ export interface Flower {
   phase: number;
   size: number;
 }
-
-export interface Settings {
-  musicOn: boolean;
-  soundOn: boolean;
-}

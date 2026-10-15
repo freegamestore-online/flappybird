@@ -41,9 +41,9 @@ export default defineConfig({
       // field passes through to the emitted manifest.webmanifest; browsers
       // ignore unknown members.
       manifest: {
-        name: "FlappyBird",
-        short_name: "FlappyBird",
-        description: "FlappyBird — free forever",
+        name: "Pipe Flyer",
+        short_name: "Pipe Flyer",
+        description: "Pipe Flyer — free forever",
         start_url: "/",
         display: "standalone",
         background_color: "#0f0f0f",
